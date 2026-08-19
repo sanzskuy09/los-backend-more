@@ -16,10 +16,10 @@ const dokumenDealerRoutes = require("./routes/dokumenDealer");
 const cors = require("cors");
 
 // Load SSL certificate and key
-const options = {
-  key: fs.readFileSync("/etc/letsencrypt/live/api1.cf.gratama-finance.co.id/privkey.pem"),
-  cert: fs.readFileSync("/etc/letsencrypt/live/api1.cf.gratama-finance.co.id/fullchain.pem")
-};
+// const options = {
+//   key: fs.readFileSync("/etc/letsencrypt/live/api1.cf.gratama-finance.co.id/privkey.pem"),
+//   cert: fs.readFileSync("/etc/letsencrypt/live/api1.cf.gratama-finance.co.id/fullchain.pem")
+// };
 
 app.use(cors());
 app.use(express.json());
