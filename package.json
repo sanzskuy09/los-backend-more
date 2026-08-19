@@ -1,0 +1,17 @@
+{
+  "dependencies": {
+    "archiver": "^8.0.0",
+    "axios": "^1.12.2",
+    "bcryptjs": "^3.0.3",
+    "body-parser": "^2.2.0",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.1",
+    "node-cron": "^4.5.0",
+    "pg": "^8.16.0",
+    "pg-hstore": "^2.3.4",
+    "pm2": "^6.0.8",
+    "sequelize": "^6.37.7"
+  }
+}

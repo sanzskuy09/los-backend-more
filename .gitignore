@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+
+# Uploads & Backups (Sesuai direktori dan request Anda)
+uploads/
+backups/
+
+# Environment Variables (Penting untuk keamanan, meskipun saat ini belum ada di list)
+.env
+.env.*
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS generated files (Berdasarkan group 'staff' yang menandakan file ini pernah dibuka di macOS)
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
