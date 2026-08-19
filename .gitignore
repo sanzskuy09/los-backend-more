@@ -7,7 +7,6 @@ backups/
 
 # Environment Variables (Penting untuk keamanan, meskipun saat ini belum ada di list)
 .env
-.env.*
 
 # Logs
 logs/
