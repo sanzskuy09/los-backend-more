@@ -41,7 +41,22 @@ app.use("/api/dokumen-dealer", dokumenDealerRoutes);
 // ====== TAMBAHAN SERVICE BACKUP ===========
 // ==========================================
 const UPLOADS_BASE_DIR = path.join(__dirname, 'uploads'); 
-const SECRET_TOKEN = 'super-secret-token-2026';
+// Token backup diambil dari .env (BACKUP_TOKEN). Tidak ada nilai default demi keamanan.
+const SECRET_TOKEN = process.env.BACKUP_TOKEN;
+
+// Tolak request kalau token belum diset di server, atau token dari client tidak cocok
+function isBackupTokenValid(req, res) {
+    if (!SECRET_TOKEN) {
+        console.error("BACKUP_TOKEN belum diset di file .env — endpoint backup dinonaktifkan.");
+        res.status(503).send("Layanan backup belum dikonfigurasi.");
+        return false;
+    }
+    if (req.query.token !== SECRET_TOKEN) {
+        res.status(403).send("Akses Ditolak: Token tidak valid.");
+        return false;
+    }
+    return true;
+}
 
 function getLocalFilePath(dbValue) {
     if (!dbValue) return null;
@@ -56,9 +71,7 @@ function getLocalFilePath(dbValue) {
 // Rute baru untuk mendownload backup
 app.get("/api/backup/download", async (req, res) => {
     // 1. Validasi Token
-    if (req.query.token !== SECRET_TOKEN) {
-        return res.status(403).send("Akses Ditolak: Token tidak valid.");
-    }
+    if (!isBackupTokenValid(req, res)) return;
 
     try {
         // 2. Eksekusi query menggunakan Sequelize (raw query)
@@ -136,29 +149,48 @@ function getZipEntryPath(dbValue) {
     return path.join('uploads', relativePath).replace(/\\/g, '/'); // Force gunakan slash '/' untuk ZIP
 }
 
-// Rute untuk mendownload HARIAN dengan struktur folder baru
+// Rute untuk mendownload backup per tanggal / rentang tanggal (struktur folder baru)
 app.get("/api/backup/download-daily", async (req, res) => {
-    if (req.query.token !== SECRET_TOKEN) {
-        return res.status(403).send("Akses Ditolak: Token tidak valid.");
+    if (!isBackupTokenValid(req, res)) return;
+
+    // Format tanggal wajib YYYY-MM-DD
+    const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+    const today = new Date().toISOString().split("T")[0];
+
+    // Fleksibel: bisa pakai ?date= (1 hari), atau ?startDate= & ?endDate= (rentang)
+    // Jika hanya salah satu yang diisi, yang lain mengikuti (tetap 1 hari).
+    const startDate = req.query.startDate || req.query.date || req.query.endDate || today;
+    const endDate = req.query.endDate || req.query.date || req.query.startDate || today;
+
+    if (!DATE_PATTERN.test(startDate) || !DATE_PATTERN.test(endDate)) {
+        return res.status(400).send("Format tanggal tidak valid. Gunakan YYYY-MM-DD.");
     }
 
-    const targetDate = req.query.date || new Date().toISOString().split("T")[0];
+    if (startDate > endDate) {
+        return res.status(400).send("startDate tidak boleh lebih besar dari endDate.");
+    }
+
+    const periodeLabel = startDate === endDate ? startDate : `${startDate}_sd_${endDate}`;
 
     try {
         const [rows] = await db.sequelize.query(`
             SELECT nik, nama, fotoktp, fotoktppasangan, application_id, 
                    uri_slik, uri_slik_pasangan, uri_pefindo, uri_pefindo_pasangan 
             FROM mobile.data_pemohon
-            WHERE DATE(created_date) = :targetDate
+            WHERE DATE(created_date) BETWEEN :startDate AND :endDate
         `, {
-            replacements: { targetDate: targetDate }
+            replacements: { startDate: startDate, endDate: endDate }
         });
 
         if (rows.length === 0) {
-            return res.status(404).send(`Tidak ada data pemohon untuk tanggal ${targetDate}.`);
+            return res.status(404).send(
+                startDate === endDate
+                    ? `Tidak ada data pemohon untuk tanggal ${startDate}.`
+                    : `Tidak ada data pemohon untuk periode ${startDate} s/d ${endDate}.`
+            );
         }
 
-        res.attachment(`backup-pemohon-harian-${targetDate}.zip`);
+        res.attachment(`backup-pemohon-harian-${periodeLabel}.zip`);
         
         // Menggunakan constructor yang berhasil di server Anda
         const archive = new archiver.ZipArchive({ zlib: { level: 9 } });
@@ -191,7 +223,7 @@ app.get("/api/backup/download-daily", async (req, res) => {
         await archive.finalize();
 
     } catch (error) {
-        console.error("Error saat melakukan backup harian:", error);
+        console.error("Error saat melakukan backup periode:", error);
         if (!res.headersSent) {
             res.status(500).send("Terjadi kesalahan internal pada server saat memproses backup harian.");
         }
